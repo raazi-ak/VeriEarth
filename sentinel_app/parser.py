@@ -25,7 +25,7 @@ def parse_sentinel5p_type(name):
         return parts[4]
     return 'UNKNOWN'
 
-def user_select_types(options):
+def gui_user_select_types(options):
     root = tk.Tk()
     root.withdraw()
 
@@ -34,6 +34,29 @@ def user_select_types(options):
         if messagebox.askyesno("Select Data Type", f"Include data of type '{option}'?"):
             selected.append(option)
     return selected
+
+def cli_user_select_types(options):
+    print("\nAvailable data types:")
+    for idx, option in enumerate(options, 1):
+        print(f"{idx}. {option}")
+
+    selected = []
+    print("Enter the numbers of the types you want to include, separated by commas (e.g., 1,3):")
+    choice = input("> ").strip()
+    selected_indices = [int(i) - 1 for i in choice.split(",") if i.strip().isdigit()]
+
+    for idx in selected_indices:
+        if 0 <= idx < len(options):
+            selected.append(options[idx])
+
+    return selected
+
+def user_select_types(options):
+    try:
+        return gui_user_select_types(options)
+    except (tk.TclError, RuntimeError):
+        print("⚠️ GUI not available, falling back to CLI mode.")
+        return cli_user_select_types(list(options))
 
 def filter_and_save_file(original_path, df, selected_types, satellite_type):
     folder_name = os.path.splitext(os.path.basename(original_path))[0] + "_filtered"
@@ -52,7 +75,11 @@ def filter_and_save_file(original_path, df, selected_types, satellite_type):
     filtered_df.to_csv(filtered_csv_path, index=False)
     shutil.copy(original_path, original_csv_path)
 
-    messagebox.showinfo("Success", f"Filtered data saved to: {filtered_csv_path}\nOriginal CSV also copied to: {original_csv_path}")
+    try:
+        messagebox.showinfo("Success", f"Filtered data saved to: {filtered_csv_path}\nOriginal CSV also copied to: {original_csv_path}")
+    except (tk.TclError, RuntimeError):
+        print(f"✅ Filtered data saved to: {filtered_csv_path}")
+        print(f"📂 Original CSV also copied to: {original_csv_path}")
 
 def process_csv(file_path):
     """Main entry point to process the CSV after fetching."""
@@ -61,27 +88,42 @@ def process_csv(file_path):
     try:
         satellite_type = detect_satellite_type(df)
     except ValueError as e:
-        messagebox.showerror("Error", str(e))
-        return None  # Return None on failure
+        try:
+            messagebox.showerror("Error", str(e))
+        except (tk.TclError, RuntimeError):
+            print(f"❌ Error: {e}")
+        return None
 
-    messagebox.showinfo("Satellite Detected", f"Detected: {satellite_type}")
+    try:
+        messagebox.showinfo("Satellite Detected", f"Detected: {satellite_type}")
+    except (tk.TclError, RuntimeError):
+        print(f"🔎 Detected Satellite: {satellite_type}")
 
     if satellite_type == 'Sentinel-1':
         types = set(df['Name'].apply(parse_sentinel1_type))
     elif satellite_type == 'Sentinel-5P':
         types = set(parse_sentinel5p_type(name) for name in df['Name'])
     else:
-        messagebox.showerror("Error", "Unrecognized satellite type.")
+        try:
+            messagebox.showerror("Error", "Unrecognized satellite type.")
+        except (tk.TclError, RuntimeError):
+            print("❌ Error: Unrecognized satellite type.")
         return None
 
     if not types:
-        messagebox.showerror("Error", "No valid types found in file.")
+        try:
+            messagebox.showerror("Error", "No valid types found in file.")
+        except (tk.TclError, RuntimeError):
+            print("❌ Error: No valid types found in file.")
         return None
 
     selected_types = user_select_types(types)
 
     if not selected_types:
-        messagebox.showwarning("No Types Selected", "No types were selected. No file will be saved.")
+        try:
+            messagebox.showwarning("No Types Selected", "No types were selected. No file will be saved.")
+        except (tk.TclError, RuntimeError):
+            print("⚠️ Warning: No types selected. No file will be saved.")
         return None
 
     folder_name = os.path.splitext(os.path.basename(file_path))[0] + "_filtered"
@@ -100,6 +142,10 @@ def process_csv(file_path):
     filtered_df.to_csv(filtered_csv_path, index=False)
     shutil.copy(file_path, original_csv_path)
 
-    messagebox.showinfo("Success", f"Filtered data saved to: {filtered_csv_path}\nOriginal CSV also copied to: {original_csv_path}")
+    try:
+        messagebox.showinfo("Success", f"Filtered data saved to: {filtered_csv_path}\nOriginal CSV also copied to: {original_csv_path}")
+    except (tk.TclError, RuntimeError):
+        print(f"✅ Filtered data saved to: {filtered_csv_path}")
+        print(f"📂 Original CSV also copied to: {original_csv_path}")
 
     return filtered_csv_path  # <--- Return the filtered file path
