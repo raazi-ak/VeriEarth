@@ -6,22 +6,37 @@ from dotenv import load_dotenv, set_key
 from tqdm import tqdm
 from time import sleep
 from requests.exceptions import ConnectionError, Timeout, RequestException
+from getpass import getpass
 
 # Load tokens and credentials from .env
-load_dotenv()
+ENV_FILE = ".env"
+load_dotenv(ENV_FILE)
 
+# Fetch credentials and ask if missing
+def get_or_ask_env_var(key, prompt, is_password=False):
+    value = os.getenv(key)
+    if not value:
+        if is_password:
+            value = getpass(f"🔑 {prompt}: ")
+        else:
+            value = input(f"🔑 {prompt}: ").strip()
+        if value:
+            set_key(ENV_FILE, key, value)
+    return value
+
+USERNAME = get_or_ask_env_var("COPERNICUS_USERNAME", "Enter your Copernicus username")
+PASSWORD = get_or_ask_env_var("COPERNICUS_PASSWORD", "Enter your Copernicus password", is_password=True)
 ACCESS_TOKEN = os.getenv("COPERNICUS_ACCESS_TOKEN")
 REFRESH_TOKEN = os.getenv("COPERNICUS_REFRESH_TOKEN")
-USERNAME = os.getenv("COPERNICUS_USERNAME")
-PASSWORD = os.getenv("COPERNICUS_PASSWORD")
-ENV_FILE = ".env"
 
 if not USERNAME or not PASSWORD:
-    raise ValueError("❌ Missing COPERNICUS_USERNAME or COPERNICUS_PASSWORD in .env.")
+    raise ValueError("❌ Missing essential credentials (username or password). Exiting.")
 
 
 def fetch_new_tokens():
+    """Authenticate and fetch new tokens (access + refresh), save to .env."""
     global ACCESS_TOKEN, REFRESH_TOKEN
+
     token_url = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
     payload = {
         "username": USERNAME,
@@ -44,6 +59,7 @@ def fetch_new_tokens():
     print("🔑 Tokens refreshed and saved to .env.")
 
 
+# Initial token fetch if missing
 if not ACCESS_TOKEN:
     print("🔄 No access token found. Fetching new tokens...")
     fetch_new_tokens()
@@ -63,6 +79,7 @@ def create_session():
 
 
 def download_product(product_id, session, retries=3):
+    """Download product and handle token refresh + resumption."""
     global ACCESS_TOKEN
 
     url = f"https://download.dataspace.copernicus.eu/odata/v1/Products({product_id})/$value"
@@ -81,7 +98,7 @@ def download_product(product_id, session, retries=3):
         try:
             response = make_request()
 
-            if response.status_code == 401:
+            if response.status_code == 401:  # Unauthorized - refresh token
                 print(f"🔐 Token expired for {product_id}, refreshing token...")
                 fetch_new_tokens()
                 response = make_request()
@@ -151,7 +168,7 @@ def download_from_csv(filtered_csv):
 
 
 def select_csv_file():
-    """Get CSV from argument or fallback to file picker (useful for local/manual)."""
+    """Get CSV from argument or fallback to file picker (for local/manual runs)."""
     if len(sys.argv) > 1:
         return sys.argv[1]
     else:
