@@ -2,8 +2,6 @@ import ee
 from datetime import datetime
 from typing import List, Dict, Literal
 
-
-
 # Initialize Earth Engine
 def initialize_earth_engine():
     try:
@@ -12,7 +10,6 @@ def initialize_earth_engine():
     except Exception as e:
         print(f"⚠️ Earth Engine Initialization Failed: {e}")
         raise e
-
 
 # Define the pollutants and their datasets
 POLLUTANTS = [
@@ -24,7 +21,6 @@ POLLUTANTS = [
     {'name': 'AOD', 'dataset': 'MODIS/061/MCD19A2_GRANULES', 'band': 'Optical_Depth_047'},
     {'name': 'O3', 'dataset': 'COPERNICUS/S5P/OFFL/L3_O3', 'band': 'O3_column_number_density'},
 ]
-
 
 def generate_date_ranges(start_date: ee.Date, end_date: ee.Date, interval: Literal['day', 'week', 'month', 'year']):
     """ Generate date ranges based on the interval type. """
@@ -47,7 +43,6 @@ def generate_date_ranges(start_date: ee.Date, end_date: ee.Date, interval: Liter
         current = next_date
 
     return ranges
-
 
 def fetch_pollutant_data(aoi: Dict, start_date: str, end_date: str, interval: Literal['day', 'week', 'month', 'year']) -> List[Dict]:
     initialize_earth_engine()
@@ -78,11 +73,18 @@ def fetch_pollutant_data(aoi: Dict, start_date: str, end_date: str, interval: Li
         print(f"   ✅ Collection Filtered - Found {collection.size().getInfo()} images for {pollutant['name']}")
 
         for start, end in date_ranges:
-            period_label = start.format('YYYY-MM-dd').getInfo() if interval == 'day' else (
-                start.format('YYYY-[W]ww').getInfo() if interval == 'week' else (
-                    start.format('YYYY-MM').getInfo() if interval == 'month' else start.format('YYYY').getInfo()
-                )
-            )
+            if interval == 'day':
+                period_label = start.format('YYYY-MM-dd').getInfo()
+            elif interval == 'week':
+                year = start.get('year').format().getInfo()
+                week = start.get('week').format().getInfo()  # Week 1 to 52
+                period_label = f"{year}-W{week.zfill(2)}"
+            elif interval == 'month':
+                period_label = start.format('YYYY-MM').getInfo()
+            elif interval == 'year':
+                period_label = start.format('YYYY').getInfo()
+            else:
+                raise ValueError(f"Unsupported interval: {interval}")
 
             print(f"   📊 Processing {interval}: {period_label}")
 
@@ -117,32 +119,38 @@ def fetch_pollutant_data(aoi: Dict, start_date: str, end_date: str, interval: Li
     print("\n✅ Data fetching complete. Total records:", len(all_data))
     return all_data
 
-if __name__ == "__main__":
-    
-    aoi = {
-        "type": "Polygon",
-        "coordinates": [
-            [
-                [77.2090, 28.6139],  # Point 1
-                [77.2100, 28.6139],  # Point 2
-                [77.2100, 28.6150],  # Point 3
-                [77.2090, 28.6150],  # Point 4
-                [77.2090, 28.6139]   # Close the polygon (same as Point 1)
-            ]
-        ]
-    }
 
-    start_date = '2023-01-01'
-    end_date = '2023-12-31'
-    interval = 'month'   # << This needs to be indented properly
+# # Test block
+# if __name__ == "__main__":
+#     # Define the AOI (Area of Interest)
+#     aoi = {
+#         "type": "Polygon",
+#         "coordinates": [
+#             [
+#                 [77.2090, 28.6139],  # Point 1
+#                 [77.2100, 28.6139],  # Point 2
+#                 [77.2100, 28.6150],  # Point 3
+#                 [77.2090, 28.6150],  # Point 4
+#                 [77.2090, 28.6139]   # Close the polygon (same as Point 1)
+#             ]
+#         ]
+#     }
 
-    data = fetch_pollutant_data(
-        aoi=aoi,
-        start_date=start_date,
-        end_date=end_date,
-        interval=interval
-    )
+#     # Define the time range and interval
+#     start_date = "2023-01-01"
+#     end_date = "2023-12-31"
+#     interval = "month"  # Can be 'day', 'week', 'month', or 'year'
 
-    print("\n📊 Final Data:")
-    for record in data:
-        print(record)
+#     # Fetch pollutant data
+#     print("🚀 Starting pollutant data fetch...")
+#     data = fetch_pollutant_data(
+#         aoi=aoi,
+#         start_date=start_date,
+#         end_date=end_date,
+#         interval=interval
+#     )
+
+#     # Print the fetched data
+#     print("\n📊 Fetched Data:")
+#     for record in data:
+#         print(record)

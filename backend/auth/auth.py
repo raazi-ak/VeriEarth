@@ -196,3 +196,12 @@ def validate_refresh_token(token: str) -> dict:
         return payload
     except PyJWTError:  # Use PyJWTError instead of JWTError
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+def decode_token(token: str, expected_type: Optional[str] = None) -> dict:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if expected_type and payload.get("type") != expected_type:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token type, expected {expected_type}")
+        return payload
+    except PyJWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
