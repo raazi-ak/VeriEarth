@@ -1,6 +1,4 @@
-Absolutely! Below’s a **complete and polished README.md** draft for **VeriEarth**, tailored to your backend folder structure, functionality, and contributors.
 
----
 
 # 🌍 VeriEarth - Satellite-based Environmental Auditing Platform
 
